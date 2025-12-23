@@ -3,7 +3,7 @@ from pathlib import Path
 import librosa
 from datasets import load_dataset, Audio
 
-from config.variables import FC_COMMON_VOICE_DATA_RAW
+from config.variables import FC_COMMON_VOICE_RAW
 
 # The CSV must contain path: the name of the file and text, the text of the audio
 audio_column = 'audio'
@@ -43,6 +43,6 @@ common_voice_fc = common_voice_fc.map(normalize_data,
 common_voice_fc = common_voice_fc.cast_column(audio_column, Audio())
 common_voice_fc.shuffle()
 
-common_voice_fc.save_to_disk(FC_COMMON_VOICE_DATA_RAW)
+common_voice_fc.save_to_disk(FC_COMMON_VOICE_RAW)
 
 print(common_voice_fc)
