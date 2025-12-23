@@ -10,7 +10,11 @@ This model is meant to train.
 
 To get the data, you need to make csv file with the columns text and audio where audio is the file paths of the
 audio files.
+
 When this is done, run the `csv_to_arrow.py` after changing the input csv file name.
+
+The dataset folder should be placed in the `data` folder. If not, put it there.
+
 The dataset used (Common Voice 24.0 FR) was manually filtered in Excel to remove the rows that were not Québécois or
 French Canadian.
 
