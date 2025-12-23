@@ -1,4 +1,4 @@
-from datasets import load_from_disk, load_dataset, DatasetDict
+from datasets import load_from_disk, load_dataset, DatasetDict, IterableDatasetDict
 from transformers import WhisperFeatureExtractor, WhisperTokenizer
 
 from config.variables import *
@@ -7,7 +7,7 @@ from config.variables import *
 def process_raw_data(dataset):
     feature_extractor = WhisperFeatureExtractor.from_pretrained(MODEL_VERSION)
     tokenizer = WhisperTokenizer.from_pretrained(MODEL_VERSION,
-                                                 language="French",
+                                                 language=TOKENIZER_LANGUAGE,
                                                  task="transcribe")
 
     def prepare_dataset(batch):
@@ -23,8 +23,8 @@ def process_raw_data(dataset):
             label_ids = tokenizer(text).input_ids
             labels.append(label_ids)
 
-        batch["audio"] = input_features
-        batch["text"] = labels
+        batch["input_features"] = input_features
+        batch["labels"] = labels
         return batch
 
     return dataset.map(prepare_dataset,
@@ -36,7 +36,6 @@ def process_raw_data(dataset):
 def get_quebecois_raw():
     if FC_DATA_RAW.exists():
         fc_data = load_from_disk(FC_DATA_RAW)
-        print(fc_data['train']['audio'])
     else:
         fc_data = DatasetDict()
         fc_data["train"] = load_dataset("rishabbahal/quebecois_canadian_french_dataset", "default", split="train")
@@ -45,31 +44,46 @@ def get_quebecois_raw():
     return fc_data
 
 
-def load_quebecois_data(save=False):
+def load_quebecois_data(save=True):
     if FC_DATA_PROCESSED.exists():
-        processed = load_from_disk(FC_DATA_PROCESSED)
-        print(processed)
-        return processed
+        return load_dataset(str(FC_DATA_PROCESSED), streaming=True)
     raw = get_quebecois_raw()
     print(raw)
     processed = process_raw_data(raw)
     if save:
         processed.save_to_disk(FC_DATA_PROCESSED)
     print(processed)
-    return processed
+    return datasetdict_to_iterable(processed)
 
 
 def load_common_voice_data():
     if FC_COMMON_VOICE_PROCESSED.exists():
-        processed = load_from_disk(FC_COMMON_VOICE_PROCESSED)
-        print(processed)
-        return processed
+        return load_dataset(str(FC_COMMON_VOICE_PROCESSED), streaming=True)
     elif FC_COMMON_VOICE_RAW.exists():
         raw = load_from_disk(FC_COMMON_VOICE_RAW)
         processed = process_raw_data(raw)
-        print(processed)
-        return processed
+        processed.save_to_disk(FC_COMMON_VOICE_PROCESSED)
+        return load_dataset(str(FC_COMMON_VOICE_PROCESSED), streaming=True)
     raise FileNotFoundError()
+
+
+def load_common_voice_data_wav2vec():
+    semi_processed = load_dataset(str(FC_COMMON_VOICE_PROCESSED))
+    processed = semi_processed.rename_column('input_features', 'input_values')
+    return processed
+
+
+def load_common_voice_raw():
+    if FC_COMMON_VOICE_RAW.exists():
+        return load_from_disk(FC_COMMON_VOICE_RAW)
+    return None
+
+
+def datasetdict_to_iterable(dict):
+    train = dict["train"].to_iterable_dataset()
+    test = dict["test"].to_iterable_dataset()
+    return IterableDatasetDict({'train': train,
+                                'test': test})
 
 
 def combine_datasets(dataset1, dataset2):
